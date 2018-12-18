@@ -19,6 +19,8 @@ const Variable = require('./engine/variable');
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
+const {buildMuZip} = require("./mu-zip");
+
 require('canvas-toBlob');
 
 const RESERVED_NAMES = ['_mouse_', '_stage_', '_edge_', '_myself_', '_random_'];
@@ -1434,6 +1436,31 @@ class VirtualMachine extends EventEmitter {
             }
         }
         return null;
+    }
+
+    asMumukiSolution() {
+        let solution = sb3.serialize(this.runtime);
+        const sounds = serializeSounds(this.runtime);
+        const costumes = serializeCostumes(this.runtime);
+        this.runtime.targets.forEach( (target, index) => {
+            solution.targets[index].blocks = target.blocks._blocks;
+        });
+        // [obj.blocks, targetExtensions] = serializeBlocks(target.blocks);
+        return { runtime: solution, sounds: sounds, costumes: costumes };
+    }
+
+    loadMumukiSolution(solution) {
+        solution.runtime.targets.map( target => {
+            [target.blocks] = sb3.serializeBlocks(target.blocks);
+            target.blocks = Object.assign({}, target.blocks);
+            return Object.assign({}, target);
+        });
+        let projectJSON = solution.runtime;
+        projectJSON.projectVersion = 3;
+        let assets = buildMuZip(solution.sounds.concat(solution.costumes));
+        Promise.resolve(this.deserializeProject(projectJSON, assets)).
+            then(() => this.runtime.emitProjectLoaded());
+
     }
 }
 
