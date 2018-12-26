@@ -19,7 +19,8 @@ const Variable = require('./engine/variable');
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
-const {buildMuZip} = require("./mu-zip");
+const {buildMuZip} = require("./mumuki-extensions/mu-zip");
+const {serializeMuAssets, deserializeMuAssets} = require("./mumuki-extensions/mu-assets-repository/serializer");
 
 require('canvas-toBlob');
 
@@ -1440,11 +1441,15 @@ class VirtualMachine extends EventEmitter {
 
     asMumukiSolution() {
         let solution = sb3.serialize(this.runtime);
-        const sounds = serializeSounds(this.runtime);
-        const costumes = serializeCostumes(this.runtime);
+        let sounds = serializeSounds(this.runtime);
+        let costumes = serializeCostumes(this.runtime);
+
         this.runtime.targets.forEach( (target, index) => {
             solution.targets[index].blocks = target.blocks._blocks;
         });
+
+        sounds = serializeMuAssets(sounds, 'sound');
+        costumes = serializeMuAssets(costumes, 'costume');
         // [obj.blocks, targetExtensions] = serializeBlocks(target.blocks);
         return { runtime: solution, sounds: sounds, costumes: costumes };
     }
@@ -1457,10 +1462,14 @@ class VirtualMachine extends EventEmitter {
         });
         let projectJSON = solution.runtime;
         projectJSON.projectVersion = 3;
-        let assets = buildMuZip(solution.sounds.concat(solution.costumes));
-        Promise.resolve(this.deserializeProject(projectJSON, assets)).
-            then(() => this.runtime.emitProjectLoaded());
-
+        let storage = this.runtime.storage;
+        let sounds = deserializeMuAssets(solution.sounds, 'sound', storage);
+        let costumes = deserializeMuAssets(solution.costumes, 'costume', storage);
+        Promise.all([sounds, costumes]).then( ([sounds, costumes]) => {
+            let muZip = buildMuZip(sounds.concat(costumes));
+            Promise.resolve(this.deserializeProject(projectJSON, muZip)).
+                then(() => this.runtime.emitProjectLoaded());
+        });
     }
 }
 

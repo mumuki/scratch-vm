@@ -1,17 +1,7 @@
 /**
  * Provides an interface for simulating a zip without actually
- * generating one
- */
-
-const JSZip = require('jszip');
-
-const buildRegularZip = function(assets) {
-    let zip = new JSZip();
-    assets.forEach( asset => {
-        zip.file(asset.fileName, asset.fileContent);
-    });
-    return zip;
-};
+ * generating one to avoid overhead
+*/
 
 const buildMuZip = function(assets) {
 
