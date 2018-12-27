@@ -1455,6 +1455,7 @@ class VirtualMachine extends EventEmitter {
     }
 
     loadMumukiSolution(solution) {
+        solution = JSON.parse(solution || "{}");
         solution.runtime.targets.map( target => {
             [target.blocks] = sb3.serializeBlocks(target.blocks);
             target.blocks = Object.assign({}, target.blocks);
